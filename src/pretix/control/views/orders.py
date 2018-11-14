@@ -163,7 +163,7 @@ class OrderDetail(OrderView):
         return ctx
 
     def get_items(self):
-        queryset = self.object.positions.all()
+        queryset = self.object.all_positions
 
         cartpos = queryset.order_by(
             'item', 'variation'
@@ -1193,7 +1193,7 @@ class OrderContactChange(OrderView):
             if self.form.cleaned_data['regenerate_secrets']:
                 changed = True
                 self.order.secret = generate_secret()
-                for op in self.order.positions.all():
+                for op in self.order.all_positions.all():
                     op.secret = generate_position_secret()
                     op.save()
                 CachedTicket.objects.filter(order_position__order=self.order).delete()
