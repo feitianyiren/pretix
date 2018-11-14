@@ -325,7 +325,7 @@ class Order(LockModel, LoggedModel):
 
     @cached_property
     def tax_total(self):
-        return (self.positions.aggregate(s=Sum('tax_value'))['s'] or 0) + (self.fees.aggregate(s=Sum('tax_value'))['s'] or 0)
+        return (self.positions.filter(canceled=False).aggregate(s=Sum('tax_value'))['s'] or 0) + (self.fees.aggregate(s=Sum('tax_value'))['s'] or 0)
 
     @property
     def net_total(self):
@@ -1275,12 +1275,14 @@ class OrderFee(models.Model):
     FEE_TYPE_PAYMENT = "payment"
     FEE_TYPE_SHIPPING = "shipping"
     FEE_TYPE_SERVICE = "service"
+    FEE_TYPE_CANCELLATION = "cancellation"
     FEE_TYPE_OTHER = "other"
     FEE_TYPE_GIFTCARD = "giftcard"
     FEE_TYPES = (
         (FEE_TYPE_PAYMENT, _("Payment fee")),
         (FEE_TYPE_SHIPPING, _("Shipping fee")),
         (FEE_TYPE_SERVICE, _("Service fee")),
+        (FEE_TYPE_CANCELLATION, _("Cancellation fee")),
         (FEE_TYPE_OTHER, _("Other fees")),
         (FEE_TYPE_GIFTCARD, _("Gift card")),
     )
@@ -1361,6 +1363,11 @@ class OrderFee(models.Model):
         super().delete(**kwargs)
 
 
+class ActivePositionManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(canceled=False)
+
+
 class OrderPosition(AbstractPosition):
     """
     An OrderPosition is one line of an order, representing one ordered item
@@ -1379,6 +1386,8 @@ class OrderPosition(AbstractPosition):
     :type tax_value: Decimal
     :param secret: The secret used for ticket QR codes
     :type secret: str
+    :param canceled: True, if this position is canceled and should no longer be regarded
+    :type canceled: bool
     :param pseudonymization_id: The QR code content for lead scanning
     :type pseudonymization_id: str
     """
@@ -1408,6 +1417,10 @@ class OrderPosition(AbstractPosition):
         unique=True,
         db_index=True
     )
+    canceled = models.BooleanField(default=False)
+
+    all = models.Manager()
+    objects = ActivePositionManager()
 
     class Meta:
         verbose_name = _("Order position")

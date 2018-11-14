@@ -597,3 +597,7 @@ details summary {
     transform: rotate(180deg);
 }
 
+.pos-canceled * {
+    color: $brand-danger;
+    text-decoration: line-through !important;
+}
